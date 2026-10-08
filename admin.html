@@ -5,6 +5,86 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Destek Paneli</title>
 <link rel="stylesheet" href="style.css">
+
+<style>
+.conversation{
+  background:#fff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  padding:16px;
+  margin:18px 0;
+}
+
+.conversation-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.conversation-id{
+  font-size:11px;
+  color:#777;
+  word-break:break-all;
+}
+
+.message{
+  padding:10px 12px;
+  border-radius:12px;
+  margin:8px 0;
+}
+
+.message.user{
+  background:#f1f5f9;
+}
+
+.message.support{
+  background:#eef2ff;
+}
+
+.message small{
+  display:block;
+  color:#777;
+  margin-bottom:5px;
+}
+
+.reply-area{
+  display:flex;
+  gap:8px;
+  margin-top:14px;
+}
+
+.reply-text{
+  flex:1;
+  min-height:70px;
+  padding:10px;
+  border:1px solid #ccc;
+  border-radius:10px;
+  resize:vertical;
+  font:inherit;
+  box-sizing:border-box;
+}
+
+.send-reply{
+  padding:10px 18px;
+  border:0;
+  border-radius:10px;
+  background:#635bff;
+  color:white;
+  font-weight:bold;
+}
+
+@media(max-width:600px){
+  .reply-area{
+    flex-direction:column;
+  }
+
+  .send-reply{
+    width:100%;
+  }
+}
+</style>
 </head>
 
 <body>
@@ -14,142 +94,369 @@
 </header>
 
 <main>
-  <h1>Gelen Destek Mesajları</h1>
-  <p>Gelen mesajları buradan görebilir ve cevaplayabilirsin.</p>
 
-  <div id="list">
-    Yükleniyor...
-  </div>
+<h1>Gelen Destek Mesajları</h1>
+
+<p>
+  Her kullanıcıyla ayrı bir sohbet.
+  İstediğin kadar mesaj gönder.
+</p>
+
+<div id="list">
+  Yükleniyor...
+</div>
+
 </main>
 
 <script src="config.js"></script>
 
 <script>
+
 const list = document.querySelector("#list");
 
-async function load() {
-  try {
+function escapeHtml(value){
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+
+async function load(){
+
+  try{
+
     const response = await fetch(
-      SUPABASE_URL + "/rest/v1/support_messages?select=*&order=created_at.desc",
+      SUPABASE_URL +
+      "/rest/v1/support_messages?select=*&order=created_at.asc",
       {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + SUPABASE_ANON_KEY
+        headers:{
+          apikey:SUPABASE_ANON_KEY,
+          Authorization:"Bearer " + SUPABASE_ANON_KEY
         }
       }
     );
 
-    if (!response.ok) {
+    if(!response.ok){
+
       const error = await response.text();
+
       console.error(error);
-      list.innerHTML = "<div class='notice'>Supabase bağlantı hatası.</div>";
+
+      list.innerHTML =
+        "<div class='notice'>Supabase bağlantı hatası.</div>";
+
       return;
     }
+
 
     const data = await response.json();
 
-    if (!data.length) {
-      list.innerHTML = "<p>Henüz mesaj yok.</p>";
+
+    if(!data.length){
+
+      list.innerHTML =
+        "<p>Henüz mesaj yok.</p>";
+
       return;
     }
 
-    list.innerHTML = data.map(x => `
-      <div class="ticket">
-        <small>${x.created_at || ""}</small>
-        <b>${x.sender}</b>
-        <p>${String(x.message).replaceAll("<","&lt;")}</p>
-        ${
-          x.sender === "user"
-          ? `<button onclick="reply('${x.session_id}')">Cevapla</button>`
-          : ""
-        }
-      </div>
-    `).join("");
 
-  } catch (e) {
+    /* MESAJLARI SESSION'A GÖRE GRUPLA */
+
+    const conversations = new Map();
+
+
+    for(const message of data){
+
+      if(!conversations.has(message.session_id)){
+
+        conversations.set(
+          message.session_id,
+          []
+        );
+
+      }
+
+      conversations
+        .get(message.session_id)
+        .push(message);
+
+    }
+
+
+    /* EN SON KONUŞMA ÜSTTE */
+
+    const groups =
+      [...conversations.entries()].reverse();
+
+
+    list.innerHTML =
+      groups.map(([sessionId,messages]) => {
+
+        return `
+
+        <section class="conversation">
+
+          <div class="conversation-head">
+
+            <b>Destek Konuşması</b>
+
+            <span class="conversation-id">
+              ${escapeHtml(sessionId)}
+            </span>
+
+          </div>
+
+
+          <div class="conversation-messages">
+
+            ${messages.map(x => `
+
+              <div class="message ${
+                x.sender === "support"
+                  ? "support"
+                  : "user"
+              }">
+
+                <small>
+
+                  ${
+                    x.sender === "support"
+                      ? "Destek"
+                      : "Kullanıcı"
+                  }
+
+                  ·
+
+                  ${escapeHtml(x.created_at || "")}
+
+                </small>
+
+
+                <div>
+                  ${escapeHtml(x.message)}
+                </div>
+
+              </div>
+
+            `).join("")}
+
+          </div>
+
+
+          <!-- HER KONUŞMADA AYRI CEVAP KUTUSU -->
+
+          <div class="reply-area">
+
+            <textarea
+              class="reply-text"
+              data-session="${escapeHtml(sessionId)}"
+              placeholder="Cevabını yaz..."
+            ></textarea>
+
+
+            <button
+              class="send-reply"
+              data-session="${escapeHtml(sessionId)}"
+            >
+              Gönder
+            </button>
+
+          </div>
+
+        </section>
+
+        `;
+
+      }).join("");
+
+
+  }catch(e){
+
     console.error(e);
-    list.innerHTML = "<div class='notice'>Bağlantı hatası: " + e.message + "</div>";
+
+    list.innerHTML =
+      "<div class='notice'>Bağlantı hatası: " +
+      escapeHtml(e.message) +
+      "</div>";
+
   }
+
 }
 
-async function reply(id) {
-  const old = document.querySelector("#replyBox");
-  if (old) old.remove();
 
-  const box = document.createElement("div");
-  box.id = "replyBox";
-  box.innerHTML = `
-    <div style="
-      position:fixed;
-      left:50%;
-      bottom:20px;
-      transform:translateX(-50%);
-      width:90%;
-      max-width:500px;
-      background:white;
-      padding:15px;
-      border-radius:12px;
-      box-shadow:0 5px 25px rgba(0,0,0,.25);
-      z-index:9999;
-    ">
-      <textarea id="replyText"
-        placeholder="Cevabını yaz..."
-        style="width:100%;height:100px;padding:10px;box-sizing:border-box;"
-      ></textarea>
+/* CEVAP GÖNDER */
 
-      <button id="sendReply" style="margin-top:10px;padding:10px 18px;">
-        Gönder
-      </button>
+async function sendReply(sessionId){
 
-      <button id="cancelReply" style="margin-top:10px;padding:10px 18px;">
-        İptal
-      </button>
-    </div>
-  `;
-
-  document.body.appendChild(box);
-
-  document.querySelector("#replyText").focus();
-
-  document.querySelector("#cancelReply").onclick = () => {
-    box.remove();
-  };
-
-  document.querySelector("#sendReply").onclick = async () => {
-    const message = document.querySelector("#replyText").value.trim();
-
-    if (!message) return;
-
-    const response = await fetch(
-      SUPABASE_URL + "/rest/v1/support_messages",
-      {
-        method: "POST",
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: "Bearer " + SUPABASE_ANON_KEY,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal"
-        },
-        body: JSON.stringify({
-          session_id: id,
-          sender: "support",
-          message: message
-        })
-      }
+  const textarea =
+    document.querySelector(
+      '.reply-text[data-session="' +
+      CSS.escape(sessionId) +
+      '"]'
     );
 
-    if (!response.ok) {
-      alert("Cevap gönderilemedi.");
+
+  if(!textarea) return;
+
+
+  const message =
+    textarea.value.trim();
+
+
+  if(!message) return;
+
+
+  const button =
+    document.querySelector(
+      '.send-reply[data-session="' +
+      CSS.escape(sessionId) +
+      '"]'
+    );
+
+
+  if(button){
+
+    button.disabled = true;
+
+    button.textContent =
+      "Gönderiliyor...";
+
+  }
+
+
+  try{
+
+    const response = await fetch(
+
+      SUPABASE_URL +
+      "/rest/v1/support_messages",
+
+      {
+
+        method:"POST",
+
+        headers:{
+
+          apikey:SUPABASE_ANON_KEY,
+
+          Authorization:
+            "Bearer " +
+            SUPABASE_ANON_KEY,
+
+          "Content-Type":
+            "application/json",
+
+          Prefer:
+            "return=minimal"
+
+        },
+
+        body:JSON.stringify({
+
+          session_id:sessionId,
+
+          sender:"support",
+
+          message:message
+
+        })
+
+      }
+
+    );
+
+
+    if(!response.ok){
+
+      const error =
+        await response.text();
+
+      console.error(error);
+
+      alert(
+        "Cevap gönderilemedi."
+      );
+
+      if(button){
+
+        button.disabled = false;
+
+        button.textContent =
+          "Gönder";
+
+      }
+
       return;
+
     }
 
-    box.remove();
-    load();
-  };
+
+    textarea.value = "";
+
+
+    await load();
+
+
+  }catch(e){
+
+    console.error(e);
+
+    alert(
+      "Bağlantı hatası: " +
+      e.message
+    );
+
+
+    if(button){
+
+      button.disabled = false;
+
+      button.textContent =
+        "Gönder";
+
+    }
+
+  }
+
 }
 
+
+/* GÖNDER BUTONLARI */
+
+list.addEventListener(
+  "click",
+  function(event){
+
+    const button =
+      event.target.closest(
+        ".send-reply"
+      );
+
+
+    if(!button) return;
+
+
+    sendReply(
+      button.dataset.session
+    );
+
+  }
+);
+
+
+/* HER 4 SANİYEDE YENİLE */
+
 load();
-setInterval(load, 4000);
+
+setInterval(
+  load,
+  4000
+);
+
 </script>
 
 </body>
