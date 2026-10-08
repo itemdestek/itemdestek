@@ -1,0 +1,7 @@
+const chat=document.querySelector("#chat"), box=document.querySelector("#messages"), input=document.querySelector("#message");
+let sessionId=localStorage.getItem("support_session")||crypto.randomUUID();localStorage.setItem("support_session",sessionId);
+function openChat(){chat.classList.remove("hidden");input.focus()} document.querySelector("#open").onclick=openChat;document.querySelector("#heroOpen").onclick=openChat;document.querySelector("#close").onclick=()=>chat.classList.add("hidden");
+function add(t,c){let d=document.createElement("div");d.className="msg "+c;d.textContent=t;box.appendChild(d);box.scrollTop=box.scrollHeight}
+async function send(){let t=input.value.trim();if(!t)return;add(t,"user");input.value="";
+if(window.SUPABASE_URL&&window.SUPABASE_ANON_KEY){try{await fetch(SUPABASE_URL+"/rest/v1/support_messages",{method:"POST",headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({session_id:sessionId,sender:"user",message:t})})}catch(e){console.log(e)}}else add("Demo: backend bağlantısı yapılınca mesajınız destek paneline düşecek.","agent")}
+document.querySelector("#send").onclick=send;input.onkeydown=e=>{if(e.key==="Enter")send()};

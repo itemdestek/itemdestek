@@ -1,0 +1,7 @@
+// Supabase proje bilgilerini buraya yaz.
+// Örn:
+// const SUPABASE_URL = "https://xxxxx.supabase.co";
+// const SUPABASE_ANON_KEY = "ey...";
+// Bu değerleri Supabase Project Settings > API bölümünden alabilirsin.
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
