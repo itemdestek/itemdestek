@@ -4,4 +4,4 @@
 // const SUPABASE_ANON_KEY = "ey...";
 // Bu değerleri Supabase Project Settings > API bölümünden alabilirsin.
 const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = "";
+const SUPABASE_ANON_KEY = "";sb_publishable_v_rkVyYtiv97BCWAjzCIhQ_UkeZihGT
