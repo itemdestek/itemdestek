@@ -1,9 +1,105 @@
-<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Destek Paneli</title><link rel="stylesheet" href="style.css"></head><body>
-<header><b>item<span>destek</span> — Destek Paneli</b></header><main><h1>Gelen Destek Mesajları</h1><p>Bu sayfa sadece destekçi/admin kullanımına ayrılmalıdır.</p><div id="list"></div></main>
-<script src="config.js"></script><script>
-const list=document.querySelector("#list");
-if(!SUPABASE_URL||!SUPABASE_ANON_KEY)
-const r=await fetch(SUPABASE_URL+"/rest/v1/support_messages?select=*&order=created_at.desc",{headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+SUPABASE_ANON_KEY}});const data=await r.json();list.innerHTML=data.map(x=>`<div class="ticket"><small>${x.created_at||""}</small><b>${x.sender}</b><p>${String(x.message).replaceAll("<","&lt;")}</p>${x.sender==="user"?`<button onclick="reply('${x.session_id}')">Cevapla</button>`:""}</div>`).join("")||"<p>Henüz mesaj yok.</p>"}
-function reply(id){const t=prompt("Cevabın:");if(!t)return;fetch(SUPABASE_URL+"/rest/v1/support_messages",{method:"POST",headers:{apikey:SUPABASE_ANON_KEY,Authorization:"Bearer "+SUPABASE_ANON_KEY,"Content-Type":"application/json","Prefer":"return=minimal"},body:JSON.stringify({session_id:id,sender:"support",message:t})}).then(load)}
-load();setInterval(load,4000);
-</script></body></html>
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Destek Paneli</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header>
+  <b>item<span>destek</span> — Destek Paneli</b>
+</header>
+
+<main>
+  <h1>Gelen Destek Mesajları</h1>
+  <p>Gelen mesajları buradan görebilir ve cevaplayabilirsin.</p>
+
+  <div id="list">
+    Yükleniyor...
+  </div>
+</main>
+
+<script src="config.js"></script>
+
+<script>
+const list = document.querySelector("#list");
+
+async function load() {
+  try {
+    const response = await fetch(
+      SUPABASE_URL + "/rest/v1/support_messages?select=*&order=created_at.desc",
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: "Bearer " + SUPABASE_ANON_KEY
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error(error);
+      list.innerHTML = "<div class='notice'>Supabase bağlantı hatası.</div>";
+      return;
+    }
+
+    const data = await response.json();
+
+    if (!data.length) {
+      list.innerHTML = "<p>Henüz mesaj yok.</p>";
+      return;
+    }
+
+    list.innerHTML = data.map(x => `
+      <div class="ticket">
+        <small>${x.created_at || ""}</small>
+        <b>${x.sender}</b>
+        <p>${String(x.message).replaceAll("<","&lt;")}</p>
+        ${
+          x.sender === "user"
+          ? `<button onclick="reply('${x.session_id}')">Cevapla</button>`
+          : ""
+        }
+      </div>
+    `).join("");
+
+  } catch (e) {
+    console.error(e);
+    list.innerHTML = "<div class='notice'>Bağlantı hatası: " + e.message + "</div>";
+  }
+}
+
+async function reply(id) {
+  const message = prompt("Cevabın:");
+  if (!message) return;
+
+  await fetch(
+    SUPABASE_URL + "/rest/v1/support_messages",
+    {
+      method: "POST",
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: "Bearer " + SUPABASE_ANON_KEY,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify({
+        session_id: id,
+        sender: "support",
+        message: message
+      })
+    }
+  );
+
+  load();
+}
+
+load();
+setInterval(load, 4000);
+</script>
+
+</body>
+</html>
