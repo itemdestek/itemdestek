@@ -63,7 +63,7 @@ async function send() {
     add("Mesajınız destek ekibine iletildi.", "agent");
   } catch (e) {
     console.error(e);
-    add("Bağlantı hatası oluştu.", "agent");
+    add("HATA: " + e.message, "agent");
   }
 }
 
